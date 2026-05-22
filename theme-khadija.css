@@ -1,0 +1,238 @@
+/*
+ * Theme: Khadija's Golden Night
+ * Optimized for Intel Pentium B960 (2-core/2-thread)
+ *
+ * Performance contract:
+ *   - Only `opacity` and `transform` are animated — both are GPU-composited
+ *     properties that never trigger layout recalculation or paint on the CPU.
+ *   - `will-change: opacity` on each slide promotes them to independent
+ *     compositor layers, so crossfades happen entirely on the GPU.
+ *   - Static `filter` on `.bg-slide` is applied once at layer-composition
+ *     time, not per-frame — no CPU cost during animation.
+ *   - Absolutely no backdrop-filter, box-shadow animation, WebGL, or JS
+ *     particle systems.
+ *   - 4 fixed compositor layers (slides) + 1 overlay = minimal layer budget.
+ */
+
+
+/* === 1. Body base ======================================================= */
+
+body {
+    background-color: #07040A !important;
+    /*
+     * Deep near-black with a slight purple undertone so the dark gaps
+     * between slideshow frames don't flash a neutral grey on slow GPUs.
+     */
+    -webkit-transition: none !important;
+    -moz-transition:    none !important;
+    transition:         none !important;
+}
+
+/* Suppress the original peach background-color transition — the slideshow
+   images already supply the atmospheric background at this point. */
+body.peach {
+    background-color: transparent !important;
+}
+body.peach-after {
+    background-color: transparent !important;
+    -webkit-animation: none !important;
+    -moz-animation:    none !important;
+    animation:         none !important;
+}
+
+
+/* === 2. Background slideshow ============================================ */
+
+.bg-slideshow {
+    position: fixed;
+    top:  0;
+    left: 0;
+    width:  100%;
+    height: 100%;
+    /*
+     * z-index: 1 puts the slideshow above the raw body background paint
+     * but below Bootstrap's navbar (z-index: 1030) and the balloon-border
+     * (z-index: 9999), so no existing content needs its z-index touched.
+     */
+    z-index: 1;
+    overflow: hidden;
+}
+
+.bg-slide {
+    position: absolute;
+    top:  0;
+    left: 0;
+    width:  100%;
+    height: 100%;
+    background-size:     cover;
+    background-position: center center;
+    background-repeat:   no-repeat;
+
+    /*
+     * Warm bridge filter:
+     *   sepia(30%)       — shifts cool purple/blue tones toward amber/brown
+     *   saturate(1.10)   — restores some vibrancy lost by sepia
+     *   brightness(0.68) — darkens enough for text to remain legible
+     *   contrast(1.08)   — slight lift to preserve detail in dark areas
+     *
+     * This is applied once at compositing time, not per-frame.
+     */
+    -webkit-filter: sepia(30%) saturate(1.10) brightness(0.68) contrast(1.08);
+    filter:         sepia(30%) saturate(1.10) brightness(0.68) contrast(1.08);
+
+    opacity: 0;
+    /*
+     * Promote each slide to its own GPU layer.
+     * With only 4 slides this is a tiny VRAM cost vs the CPU savings
+     * from compositor-thread-only opacity changes.
+     */
+    will-change: opacity;
+    -webkit-animation: khadijaSlideFade 32s linear infinite;
+    animation:         khadijaSlideFade 32s linear infinite;
+}
+
+/*
+ * Slideshow timing (4 images × 8 s each = 32 s total cycle)
+ *   0 %   – 6.25 % (0 – 2 s):  fade in
+ *   6.25 % – 25 %  (2 – 8 s):  fully visible
+ *   25 %  – 31.25% (8 – 10 s): fade out (overlaps next slide's fade-in)
+ *   31.25%– 100%   (10 – 32 s): hidden, waiting for next cycle
+ */
+@-webkit-keyframes khadijaSlideFade {
+    0%     { opacity: 0; }
+    6.25%  { opacity: 1; }
+    25%    { opacity: 1; }
+    31.25% { opacity: 0; }
+    100%   { opacity: 0; }
+}
+@keyframes khadijaSlideFade {
+    0%     { opacity: 0; }
+    6.25%  { opacity: 1; }
+    25%    { opacity: 1; }
+    31.25% { opacity: 0; }
+    100%   { opacity: 0; }
+}
+
+.bg-slide:nth-child(1) {
+    background-image: url('bg-purple-forest.jpg');
+    -webkit-animation-delay: 0s;
+    animation-delay: 0s;
+}
+.bg-slide:nth-child(2) {
+    background-image: url('bg-red-roses.jpg');
+    -webkit-animation-delay: 8s;
+    animation-delay: 8s;
+}
+.bg-slide:nth-child(3) {
+    background-image: url('bg-nebula-ship.jpg');
+    -webkit-animation-delay: 16s;
+    animation-delay: 16s;
+}
+.bg-slide:nth-child(4) {
+    background-image: url('bg-rose-cathedral.jpg');
+    -webkit-animation-delay: 24s;
+    animation-delay: 24s;
+}
+
+
+/* === 3. Dark overlay for text legibility ================================ */
+
+.bg-overlay {
+    position: fixed;
+    top:  0;
+    left: 0;
+    width:  100%;
+    height: 100%;
+    z-index: 2;
+    /*
+     * A dark-brown semi-transparent veil.  Opacity chosen so that the
+     * lightest image regions still allow the golden text to contrast at
+     * WCAG AA (4.5:1) against the blended mid-tones.
+     */
+    background: rgba(5, 2, 0, 0.48);
+    pointer-events: none;
+}
+
+
+/* === 4. Z-index: all original content above the overlay (z-index: 2) === */
+
+/*
+ * .balloons   → already z-index: 99   (no change needed)
+ * .balloon-border → already z-index: 9999 (no change needed)
+ * .loading    → already z-index: 99999 (no change needed)
+ * .navbar-fixed-bottom → Bootstrap sets z-index: 1030 (no change needed)
+ *
+ * Only the main content container lacks a stacking context:
+ */
+.container {
+    position: relative;
+    z-index: 10;
+}
+
+
+/* === 5. Golden brown color palette ====================================== */
+
+/* --- Message story text --- */
+.message p {
+    color: #DAA520 !important;                   /* Goldenrod */
+    text-shadow:
+        0 1px 4px  rgba(139, 90,  0, 0.55),
+        0 0   12px rgba(184, 134, 11, 0.25) !important;
+}
+
+/* --- Balloon letter glow (warm gold halo around each letter) --- */
+.balloons h2 {
+    text-shadow:
+        0 0 10px rgba(218, 165, 32, 0.80),
+        0 0 22px rgba(184, 134, 11, 0.45),
+        3px 3px 4px rgba(0, 0, 0, 0.70) !important;
+}
+
+/* --- Control buttons: dark transparent with golden border --- */
+.btn-primary {
+    background-color: rgba(10, 5, 0, 0.65)  !important;
+    border-color:     #B8860B                !important;   /* Dark Goldenrod */
+    color:            #DAA520               !important;
+    font-family:      'Signika', sans-serif;
+    border-width:     1px;
+    border-radius:    3px;
+    padding:          8px 12px;
+    letter-spacing:   0.04em;
+    /* opacity-only transition keeps interaction feedback on the GPU */
+    -webkit-transition: opacity 0.22s ease;
+    transition:         opacity 0.22s ease;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+    background-color: rgba(184, 134, 11, 0.22) !important;
+    border-color:     #DAA520                  !important;
+    color:            #FFD700                  !important;
+    opacity:          1;
+}
+
+/* --- Bottom navbar dark golden bar --- */
+.navbar-fixed-bottom {
+    background:  rgba(5, 2, 0, 0.90) !important;
+    border-top:  1px solid #8B4513   !important;   /* Saddle Brown */
+    box-shadow:  0 -2px 14px rgba(184, 134, 11, 0.28) !important;
+}
+
+/* --- Banner drop-shadow in gold --- */
+.bannar {
+    -webkit-filter: drop-shadow(0 0 8px rgba(218, 165, 32, 0.40));
+    filter:         drop-shadow(0 0 8px rgba(218, 165, 32, 0.40));
+}
+
+/* --- Bulb row: subtle golden wire separator --- */
+.bulb-holder {
+    border-bottom: 1px solid rgba(184, 134, 11, 0.18);
+}
+
+/* --- Message section: slight dark tint so text doesn't sit on raw image --- */
+.message {
+    background: rgba(5, 2, 0, 0.30);
+    border-radius: 6px;
+    padding: 10px 20px;
+}
